@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phả Dòng Họ</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-flextree@2.1.2/build/d3-flextree.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-org-chart@3"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Charm:wght@400;700&family=Dancing+Script:wght@600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <!-- Thư viện hỗ trợ tính Lịch Âm -->
+    <script src="https://unpkg.com/lunar-javascript/lunar.js"></script>
+
+    <style>
+        .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; }
+        .chart-container { height: 85vh; background-color: #f8fafc; border-radius: 8px; overflow: hidden; }
+        .font-bay-luon { font-family: 'Great Vibes', cursive; }
+        .font-name { font-family: 'Charm', cursive, serif; font-weight: 700; }
+        .font-name-soft { font-family: 'Dancing Script', cursive; font-weight: 700; }
+        .ql-editor p { margin-bottom: 4px !important; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+    
+    <!-- THANH HEADER ĐĂNG NHẬP (MỚI) -->
+    <div class="w-full bg-white border-b px-6 py-2 flex justify-between items-center shadow-sm">
+        <div class="text-xl font-bold text-blue-800 font-bay-luon">Chào mừng bạn đến với Phả dòng họ Đặng Huy !</div>
+        <div id="auth-controls" class="flex items-center gap-3">
+            <!-- Sẽ được JS render nút Đăng nhập hoặc Tên User -->
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+        <img src="{{ url_for('static', filename='images/dlq.png') }}" alt="Logo" class="mx-auto mb-0 w-40 h-auto">
+        <strong><h1 class="font-bay-luon text-3xl text-center mb-6 text-blue-700" style="letter-spacing: 2px; word-spacing: 10px; margin-bottom: 2px;"><font color="#203E6F">DÒNG HỌ</font> ĐẶNG HUY</h1></strong>
+        
+        <!-- Tabs -->
+        <div class="flex border-b mb-6 relative">
+            <button onclick="switchTab('intro')" id="tab-intro" class="px-6 py-3 font-medium text-gray-500 hover:text-blue-600 text-sm">GIỚI THIỆU</button>
+            <button onclick="switchTab('tree')" id="tab-tree" class="tab-active px-6 py-3 font-medium hover:text-blue-600 text-sm">CÂY GIA PHẢ</button>
+            <button onclick="switchTab('anniv')" id="tab-anniv" class="px-6 py-3 font-medium text-gray-500 hover:text-blue-600 text-sm">NGÀY GIỖ</button>
+        </div>
+
+        <!-- Tab Content: Intro -->
+        <div id="content-intro" class="tab-content hidden h-[85vh]">
+            <div class="flex w-full h-full border rounded shadow-sm overflow-hidden bg-white relative">
+                <!-- CỘT 1: MENU SIDEBAR -->
+                <div id="intro-sidebar" class="group w-[20%] bg-blue-600 flex flex-col transition-all duration-300 relative z-20">
+                    <div id="article-menu" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
+                    <div id="admin-add-menu-btn" class="p-3 border-t border-blue-500 hidden">
+                        <button onclick="openArticleEditor()" class="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition font-medium shadow-sm truncate">+ Thêm mục mới</button>
+                    </div>
+                    <button onclick="toggleIntroSidebar()" class="absolute -right-6 top-0 w-6 py-2 bg-blue-600 text-white flex justify-center items-center rounded-r shadow hover:bg-blue-700 transition-all duration-300 opacity-0 invisible group-hover:opacity-100 group-hover:visible cursor-pointer">&laquo;</button>
+                </div>
+                <!-- NÚT MỞ RỘNG -->
+                <button id="btn-expand-sidebar" onclick="toggleIntroSidebar()" class="hidden absolute left-0 top-3 bg-blue-600 text-white p-2 rounded-r shadow-md z-10 hover:bg-blue-700 transition">&raquo;</button>
+                
+                <!-- CỘT 2: NỘI DUNG -->
+                <div id="intro-content-area" class="w-[80%] flex-1 flex flex-col transition-all duration-300 bg-white">
+                    <div id="article-empty" class="flex items-center justify-center text-blue-700" style="padding-top: 40px !important;">
+                        <p class="text-3xl font-bay-luon">Chào mừng bạn đến với Phả dòng họ Đặng Huy!</p>
+                    </div>
+                    <div id="article-view" class="flex-1 flex flex-col hidden overflow-hidden">
+                        <div class="flex justify-between items-center p-4 border-b bg-gray-50">
+                            <h3 id="view-title" class="text-1xl font-bold text-gray-800 uppercase"></h3>
+                            <div id="admin-article-actions" class="flex gap-2 shrink-0 hidden">
+                                <button onclick="editCurrentArticle()" class="bg-yellow-500 text-white px-3 py-1 rounded">Sửa</button>
+                                <button onclick="deleteCurrentArticle()" class="bg-red-500 text-white px-3 py-1 rounded">Xóa</button>
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-4"><div id="view-content" class="ql-editor p-0" style="font-size: 13px;"></div></div>
+                    </div>
+                    <!-- Chế độ sửa -->
+                    <div id="article-edit" class="flex-1 flex flex-col p-4 hidden bg-gray-50 min-h-0">
+                        <input type="hidden" id="edit-id">
+                        <div class="flex gap-2 mb-3 shrink-0">
+                            <select id="edit-parent" class="border rounded p-2 bg-white flex-1 max-w-xs"></select>
+                            <input type="text" id="edit-title" class="flex-[2] border rounded p-2 font-bold" placeholder="Tiêu đề...">
+                            <input type="number" id="edit-order" class="w-24 border rounded p-2 text-center" placeholder="Thứ tự">
+                        </div>
+                        <div class="flex-1 border rounded bg-white overflow-hidden flex flex-col min-h-0">
+                            <div id="quill-editor" class="flex-1 min-h-0 overflow-y-auto"></div>
+                        </div>
+                        <div class="flex justify-end gap-3 mt-4 shrink-0">
+                            <button onclick="cancelArticleEdit()" class="px-5 py-2 bg-gray-300 rounded">Hủy bỏ</button>
+                            <button onclick="saveArticle()" class="px-5 py-2 bg-blue-600 text-white rounded">Lưu bài</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Tree -->
+        <div id="content-tree" class="bg-white p-4 rounded-lg shadow border border-gray-200">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex gap-2">
+                    <input type="text" id="searchInput" onkeydown="if(event.key === 'Enter') searchMember()" placeholder="Tìm tên, SĐT..." class="border rounded px-3 py-2 w-64">
+                    <button onclick="searchMember()" class="bg-blue-600 text-white px-4 py-2 rounded">Tìm kiếm</button>
+                    <button id="btnShowResults" onclick="openSearchResultsModal()" class="hidden bg-yellow-500 text-white px-4 py-2 rounded">Kết quả</button>
+                </div>
+                <!-- Nút này chỉ hiện với Admin -->
+                <button id="admin-add-root-btn" onclick="openModal(null, 0)" class="bg-green-600 text-white px-4 py-2 rounded font-medium shadow-sm hidden">+ Thêm Gốc</button>
+            </div>
+            <div id="search-results" class="mb-4 text-sm text-blue-600"></div>
+            <div class="chart-container" id="tree-container"></div>
+        </div>
+
+        <!-- Tab Content: Anniversary (NGÀY GIỖ) -->
+        <div id="content-anniv" class="tab-content hidden bg-white p-6 rounded-lg shadow border border-gray-200 min-h-[85vh]">
+            <h2 class="text-1xl font-bold text-center text-blue-800 mb-6 font-name uppercase">Danh sách Ngày Giỗ sắp tới <font style="color: #fc8618;">(trong vòng 30 ngày)</font></h2>
+            
+            <div class="mb-8 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h3 class="text-lg font-bold text-blue-800 mb-3 border-b-2 border-blue-300 pb-2 inline-block">1. Ngày giỗ trong cùng nhánh</h3>
+                <div id="anniv-same-branch" class="space-y-3 mt-2">
+                    <!-- JS sẽ đổ dữ liệu vào đây -->
+                </div>
+            </div>
+            
+            <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg font-bold text-gray-700 mb-3 border-b-2 border-gray-300 pb-2 inline-block">2. Ngày giỗ khác nhánh</h3>
+                <div id="anniv-other-branch" class="space-y-3 mt-2">
+                    <!-- JS sẽ đổ dữ liệu vào đây -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CÁC MODAL HIỆN CÓ (Giữ nguyên cấu trúc HTML, sẽ được JS điều khiển hiển thị nút Lưu) -->
+    <!-- Modal Form Thêm/Sửa Thành Viên -->
+    <div id="memberModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
+            <h2 id="modalTitle" class="text-2xl font-bold mb-4 text-blue-800 border-b pb-2">Thêm/Sửa Thành Viên</h2>
+            <form id="memberForm" onsubmit="saveMember(event)">
+                <input type="hidden" id="parentId">
+                <input type="hidden" id="memberId">
+                <input type="hidden" id="oldSpouse">
+                
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="col-span-2 sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700">Họ và tên *</label>
+                        <input type="text" id="fullName" required class="w-full border border-gray-300 rounded px-3 py-2 mt-1 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="block text-sm font-medium text-gray-700">Đời thứ *</label>
+                        <input type="number" id="generation" required class="w-full border border-gray-300 rounded px-3 py-2 mt-1 bg-gray-50">
+                    </div>
+                    <div class="col-span-2 sm:col-span-1">
+                        <label class="block text-sm font-medium text-gray-700">Con thứ mấy *</label>
+                        <input type="number" id="childOrder" required value="1" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                    </div>
+                    <div id="motherNameContainer" class="col-span-2 hidden bg-pink-50 p-3 rounded border border-pink-200">
+                        <label class="block text-sm font-medium text-pink-800">Con của ông/bà nào? (Tên bố/mẹ) *</label>
+                        <input type="text" id="motherName" class="w-full border border-pink-300 rounded px-3 py-2 focus:ring-pink-500 focus:border-pink-500" placeholder="VD: Bà Nguyễn Thị A">
+                    </div>
+                    
+                    <!-- KHỐI THÔNG TIN VỢ/CHỒNG CHI TIẾT -->
+                    <div class="col-span-4 bg-blue-50 p-4 rounded-lg border border-blue-200 mt-2 mb-2">
+                        <h3 class="font-bold text-blue-800 mb-3 border-b border-blue-200 pb-2">Thông tin Vợ/Chồng (nếu có)</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <!-- Bản thân Vợ/Chồng -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Họ tên Vợ/Chồng</label>
+                                <input type="text" id="spouse" class="w-full border border-gray-300 rounded px-3 py-2 mt-1" placeholder="Nhập tên Vợ/Chồng">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Năm/Ngày sinh</label>
+                                <input type="text" id="spouseDob" class="w-full border border-gray-300 rounded px-3 py-2 mt-1" placeholder="VD: 1990">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Ngày mất (Dương)</label>
+                                    <input type="text" id="spouseDodSolar" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Ngày mất (Âm)</label>
+                                    <input type="text" id="spouseDodLunar" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                                </div>
+                            </div>
+                            
+                            <!-- Bố của Vợ/Chồng -->
+                            <div class="col-span-1 sm:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2 pt-2 border-t border-dashed border-blue-200">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Họ tên Bố (Vợ/Chồng)</label>
+                                    <input type="text" id="spouseFatherName" class="w-full border border-gray-300 rounded px-3 py-2 mt-1" placeholder="Tên Bố">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Năm/Ngày sinh của Bố</label>
+                                    <input type="text" id="spouseFatherDob" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Ngày mất (Dương)</label>
+                                        <input type="text" id="spouseFatherDodSolar" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Ngày mất (Âm)</label>
+                                        <input type="text" id="spouseFatherDodLunar" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mẹ của Vợ/Chồng -->
+                            <div class="col-span-1 sm:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2 pt-2 border-t border-dashed border-blue-200">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Họ tên Mẹ (Vợ/Chồng)</label>
+                                    <input type="text" id="spouseMotherName" class="w-full border border-gray-300 rounded px-3 py-2 mt-1" placeholder="Tên Mẹ">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Năm/Ngày sinh của Mẹ</label>
+                                    <input type="text" id="spouseMotherDob" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Ngày mất (Dương)</label>
+                                        <input type="text" id="spouseMotherDodSolar" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700">Ngày mất (Âm)</label>
+                                        <input type="text" id="spouseMotherDodLunar" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="col-span-2 sm:col-span-1 block text-sm font-medium text-gray-700">Giới tính</label>
+                        <select id="gender" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="col-span-2 sm:col-span-1 block text-sm font-medium text-gray-700">Ngày/Năm sinh</label>
+                        <input type="text" id="dob" class="w-full border border-gray-300 rounded px-3 py-2 mt-1" placeholder="VD: 1990 hoặc 01/01/1990">
+                    </div>
+                    
+                    <div class="col-span-2 sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700">Số điện thoại</label>
+                        <input type="text" id="phone" class="w-full border border-gray-300 rounded px-3 py-2 mt-1" placeholder="Nhập số điện thoại">
+                    </div>
+                    <div class="col-span-4">
+                        <label class="block text-sm font-medium text-gray-700">Địa chỉ</label>
+                        <input type="text" id="address" class="w-full border border-gray-300 rounded px-3 py-2 mt-1" placeholder="Nhập địa chỉ">
+                    </div>
+                    <div class="col-span-4">
+                        <label class="block text-sm font-medium text-gray-700">Thông tin khác</label>
+                        <textarea id="otherInfo" rows="2" class="w-full border border-gray-300 rounded px-3 py-2 mt-1" placeholder="Ghi chú thêm..."></textarea>
+                    </div>
+                    
+                    <div class="col-span-2 flex gap-4 mt-2 p-3 bg-gray-50 rounded border">
+                        <label class="flex items-center gap-2 font-medium cursor-pointer">
+                            <input type="checkbox" id="isAlive" onchange="toggleDeathDates()" class="w-4 h-4 text-blue-600"> Tình trạng: Còn sống
+                        </label>
+                    </div>
+                    <div id="deathDates" class="col-span-2 grid grid-cols-2 gap-4 hidden">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Ngày mất (Dương)</label>
+                            <input type="text" id="dodSolar" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Ngày mất (Âm)</label>
+                            <input type="text" id="dodLunar" class="w-full border border-gray-300 rounded px-3 py-2 mt-1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end gap-3 mt-6 border-t pt-4">
+                    <button type="button" onclick="closeModal()" class="px-5 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-100 font-medium">Hủy</button>
+                    <!-- Tôi đã đổi nút về 1 nút duy nhất để Admin và User đều dùng chung luồng Submit -->
+                    <!-- Phục hồi lại 2 nút với thuộc tính isContinue -->
+                    <button type="submit" onclick="window.isContinue = true" class="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium shadow">Lưu & Nhập tiếp</button>
+                    <button type="submit" onclick="window.isContinue = false" class="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium shadow">Lưu & Đóng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="infoModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto shadow-xl relative">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h2 class="text-xl font-bold text-blue-800">Thông tin chi tiết</h2>
+                <button onclick="closeInfoModal()" class="text-gray-500 hover:text-red-500 font-bold text-xl">&times;</button>
+            </div>
+            <div id="infoContent" class="space-y-3 text-sm text-gray-700"></div>
+            
+            <!-- NÚT YÊU CẦU XÁC NHẬN (MỚI) -->
+            <div id="claim-section" class="mt-4 pt-4 border-t border-dashed hidden text-center">
+                <p class="text-xs text-gray-500 mb-2">Đỉnh danh nhánh này chưa có người quản lý</p>
+                <button onclick="openClaimModal()" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded shadow-sm font-bold w-full">Xác nhận ĐÂY LÀ TÔI</button>
+            </div>
+            
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeInfoModal()" class="px-5 py-2 bg-gray-200 text-gray-800 rounded">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ĐĂNG NHẬP (MỚI) -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg w-full max-w-sm shadow-xl">
+            <h2 class="text-2xl font-bold text-center text-blue-800 mb-6">Đăng Nhập</h2>
+            <!-- Login GG -->
+            <a href="/api/auth/google" class="flex items-center justify-center gap-2 w-full border border-gray-300 rounded py-2 mb-4 hover:bg-gray-50 font-medium text-gray-700 transition">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" class="w-5 h-5"> Đăng nhập bằng Google
+            </a>
+            <div class="relative flex items-center py-2">
+                <div class="flex-grow border-t border-gray-300"></div>
+                <span class="flex-shrink-0 mx-4 text-gray-400 text-sm">Hoặc</span>
+                <div class="flex-grow border-t border-gray-300"></div>
+            </div>
+            <!-- Login Form (Admin) -->
+            <form id="loginForm" onsubmit="handleLogin(event)" class="mt-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Tài khoản</label>
+                    <input type="text" id="loginUser" required class="w-full border rounded px-3 py-2 mt-1">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Mật khẩu</label>
+                    <input type="password" id="loginPass" required class="w-full border rounded px-3 py-2 mt-1">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white rounded py-2 font-bold hover:bg-blue-700">Đăng Nhập</button>
+            </form>
+            <button onclick="closeLoginModal()" class="w-full mt-3 text-gray-500 hover:text-gray-800 underline text-sm">Hủy bỏ</button>
+        </div>
+    </div>
+
+    <!-- MODAL CLAIM (MỚI) -->
+    <div id="claimModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-full max-w-sm shadow-xl">
+            <h2 class="text-xl font-bold text-blue-800 mb-4">Xác nhận danh tính</h2>
+            <p class="text-sm text-gray-600 mb-4">Vui lòng cung cấp thông tin để Ban quản trị đối chiếu.</p>
+            <form id="claimForm" onsubmit="submitClaim(event)" class="space-y-3">
+                <input type="text" id="claimPhone" placeholder="Số điện thoại của bạn" required class="w-full border rounded px-3 py-2">
+                <input type="email" id="claimEmail" placeholder="Email (nếu có)" class="w-full border rounded px-3 py-2">
+                <textarea id="claimNotes" placeholder="Ghi chú thêm (VD: Con ông A, bà B)" rows="3" required class="w-full border rounded px-3 py-2"></textarea>
+                <div class="flex justify-end gap-2 mt-4">
+                    <button type="button" onclick="closeClaimModal()" class="px-4 py-2 bg-gray-200 rounded">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-yellow-500 text-white rounded font-bold">Gửi yêu cầu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL ADMIN DASHBOARD (MỚI) -->
+    <div id="adminDashboardModal" class="fixed inset-0 bg-black bg-opacity-60 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h2 class="text-2xl font-bold text-blue-800">Bảng Quản Trị (Xét Duyệt)</h2>
+                <button onclick="closeAdminDashboard()" class="text-gray-500 font-bold text-xl">&times;</button>
+            </div>
+            
+            <h3 class="font-bold text-lg text-gray-700 mt-4 border-l-4 border-yellow-500 pl-2">1. Yêu cầu Nhận nhánh (Claim)</h3>
+            <div id="adminClaimsList" class="space-y-2 mt-2 p-2 bg-gray-50 rounded">Đang tải...</div>
+
+            <h3 class="font-bold text-lg text-gray-700 mt-6 border-l-4 border-blue-500 pl-2">2. Đề nghị Thay đổi thông tin</h3>
+            <div id="adminEditsList" class="space-y-2 mt-2 p-2 bg-gray-50 rounded">Đang tải...</div>
+        </div>
+    </div>
+
+    <!-- Nhúng file Logic Javascript (MỚI) -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
