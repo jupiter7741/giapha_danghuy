@@ -698,12 +698,23 @@ function openInfoModal(memberId) {
             <br/>- Ngày mất (Dương lịch): ${member.dod_solar || 'Không rõ'}
             <br/>- Ngày mất (Âm lịch): ${member.dod_lunar || 'Không rõ'}`;
 
+            // THÊM LOGIC KIỂM TRA GIỚI TÍNH CỦA CHA/MẸ
+    let parentLabel = "Mẹ"; // Mặc định là Mẹ
+    if (member.parent_id) {
+        // Dò ngược lên tìm nút phụ huynh
+        const parentNode = familyData.find(d => d.id == member.parent_id);
+        // Nếu nút phụ huynh là Nữ, thì người phối ngẫu (lưu trong mother_name) chính là Bố
+        if (parentNode && parentNode.gender === 'Nữ') {
+            parentLabel = "Bố";
+        }
+    }
+
     document.getElementById('infoContent').innerHTML = `
         <div class="grid grid-cols-3 gap-2 border-b pb-2"><span class="font-medium col-span-1">Họ và tên:</span> <span class="col-span-2 font-bold text-base text-blue-700">${prefix} ${member.full_name}</span></div>
         <div class="grid grid-cols-3 gap-2 border-b pb-2"><span class="font-medium col-span-1">Đời thứ:</span> <span class="col-span-2">${member.generation} ${member.child_order ? `(Con thứ ${member.child_order})` : ''}</span></div>
         <div class="grid grid-cols-3 gap-2 border-b pb-2"><span class="font-medium col-span-1">Giới tính:</span> <span class="col-span-2">${member.gender}</span></div>
         <div class="grid grid-cols-3 gap-2 border-b pb-2"><span class="font-medium col-span-1">Ngày sinh:</span> <span class="col-span-2">${member.dob || 'Đang cập nhật'}</span></div>
-        <div class="grid grid-cols-3 gap-2 border-b pb-2"><span class="font-medium col-span-1">Mẹ:</span> <span class="col-span-2">${member.mother_name || 'Không rõ'}</span></div>
+        <div class="grid grid-cols-3 gap-2 border-b pb-2"><span class="font-medium col-span-1">${parentLabel}:</span> <span class="col-span-2">${member.mother_name || 'Không rõ'}</span></div>
         <div class="grid grid-cols-3 gap-2 border-b pb-2"><span class="font-medium col-span-1">${member.gender === 'Nam' ? 'Vợ' : 'Chồng'}:</span>${!member.spouse_name ? `<span class="col-span-2">Không rõ</span>` : `<div class="col-span-2 bg-blue-50 p-3 rounded-lg text-sm border border-blue-100"><div class="font-bold text-blue-800 text-base mb-1">${member.spouse_name}</div>${member.spouse_dob ? `<div>- Sinh: ${member.spouse_dob}</div>` : ''}${member.spouse_dod_solar || member.spouse_dod_lunar ? `<div>- Mất: ${member.spouse_dod_solar ? member.spouse_dod_solar + ' (Dương)' : ''} ${member.spouse_dod_lunar ? member.spouse_dod_lunar + ' (Âm)' : ''}</div>` : ''}${(member.spouse_father_name || member.spouse_mother_name) ? `<div class="mt-3 font-bold text-gray-700 border-t border-dashed border-blue-200 pt-2">Thông tin Tứ thân phụ mẫu:</div>` : ''}${member.spouse_father_name ? `<div class="mt-1"><span class="font-medium text-blue-700">Ông:</span> ${member.spouse_father_name}${member.spouse_father_dob ? `(Sinh: ${member.spouse_father_dob})` : ''}${member.spouse_father_dod_solar || member.spouse_father_dod_lunar ? `<br> ↳ Mất: ${member.spouse_father_dod_solar || ''} ${member.spouse_father_dod_lunar ? `(${member.spouse_father_dod_lunar} Âm)` : ''}` : ''}</div>` : ''}${member.spouse_mother_name ? `<div class="mt-2"><span class="font-medium text-blue-700">Bà:</span> ${member.spouse_mother_name}${member.spouse_mother_dob ? `(Sinh: ${member.spouse_mother_dob})` : ''}${member.spouse_mother_dod_solar || member.spouse_mother_dod_lunar ? `<br> ↳ Mất: ${member.spouse_mother_dod_solar || ''} ${member.spouse_mother_dod_lunar ? `(${member.spouse_mother_dod_lunar} Âm)` : ''}` : ''}</div>` : ''}</div>`}</div>
         <div class="grid grid-cols-3 gap-2 border-b pb-2"><span class="font-medium col-span-1">Số điện thoại:</span> <span class="col-span-2">${member.phone || 'Chưa cập nhật'}</span></div>
         <div class="grid grid-cols-3 gap-2 border-b pb-2"><span class="font-medium col-span-1">Địa chỉ:</span> <span class="col-span-2">${member.address || 'Chưa cập nhật'}</span></div>
@@ -721,9 +732,7 @@ function openInfoModal(memberId) {
         }
         
         // Chỉ hiện nút Claim khi thỏa mãn ĐỒNG THỜI 3 điều kiện:
-        // - Là user thường
-        // - Nút này chưa có ai quản lý
-        // - Bản thân User CHƯA TỪNG nhận nút nào khác
+        // là user thường, nút này chưa có ai quản lý, bản thân User CHƯA TỪNG nhận nút nào khác
         if (currentUser && currentUser.role === 'user' && !member.linked_user_id && !hasClaimedNode) {
             claimSection.classList.remove('hidden');
         } else {
