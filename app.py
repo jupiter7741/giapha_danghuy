@@ -43,6 +43,16 @@ def login():
     
     return jsonify({"error": "Sai tài khoản hoặc mật khẩu"}), 401
 
+# chạy tự động để bảng Supabase không bị "ngủ đông" (idle)
+@app.route('/api/keep-alive', methods=['GET'])
+def keep_alive():
+    try:
+        # Gọi một query rất nhẹ để ping database
+        response = supabase.table('users').select('id').limit(1).execute()
+        return jsonify({"message": "Supabase is kept alive!", "status": "success"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "status": "failed"}), 500
+    
 # API Cài đặt tài khoản Admin (Chỉ cần chạy 1 lần)
 @app.route('/api/setup-admin', methods=['GET'])
 def setup_admin():
